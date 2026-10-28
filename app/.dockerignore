@@ -1,4 +1,5 @@
 target/
-.git/
 .idea/
-.env
+*.iml
+.DS_Store
+.git/

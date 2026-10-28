@@ -1,7 +1,12 @@
 services:
   app:
-    # Docker собирает образ нашего приложения из Dockerfile.
-    build: ./app
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    environment:
+      POD_ID: pod-local-1
+      DATACENTER: local
+      # Только для учебной нагрузки: POST /items с X-Demo-Error: 500.
+      APP_DEMO_FAILURES_ENABLED: "true"
     ports:
-      # Порт Mac -> порт приложения внутри контейнера.
       - "127.0.0.1:8080:8080"
