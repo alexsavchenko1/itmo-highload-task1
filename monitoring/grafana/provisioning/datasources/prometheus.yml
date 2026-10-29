@@ -1,0 +1,13 @@
+# Этот источник данных создаётся автоматически на первом старте Grafana.
+# UID фиксирован для будущего CLI-генератора дашбордов.
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: itmo-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 5s

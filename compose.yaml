@@ -1,12 +1,62 @@
+# Все контейнеры создаются одной командой: docker compose up --build -d.
+# app-1 и app-2 получают один исходный Java-код, но независимую память и метрики.
 services:
-  app:
+  app-1:
     build:
       context: ./app
       dockerfile: Dockerfile
     environment:
-      POD_ID: pod-local-1
-      DATACENTER: local
-      # Только для учебной нагрузки: POST /items с X-Demo-Error: 500.
+      POD_ID: pod-1
+      DATACENTER: dc-a
       APP_DEMO_FAILURES_ENABLED: "true"
     ports:
       - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+
+  app-2:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    environment:
+      POD_ID: pod-2
+      DATACENTER: dc-b
+      APP_DEMO_FAILURES_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8081:8080"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - app-1
+      - app-2
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Create .env from .env.example}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Create .env from .env.example}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:

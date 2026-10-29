@@ -1,4 +1,10 @@
+# Maven, IDE и локальные настройки
 /target/
+**/target/
 /.idea/
 *.iml
+.DS_Store
+**/.DS_Store
 .env
+# Локальные каталоги и распакованные резервные копии
+/app-backup/

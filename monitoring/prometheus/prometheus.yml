@@ -1,0 +1,20 @@
+# Prometheus опрашивает экземпляры через DNS Docker Compose, НЕ через localhost.
+global:
+  scrape_interval: 5s
+  scrape_timeout: 4s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: items
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - app-1:8080
+          - app-2:8080
+    # Имена ряда app_http_requests_total и app_http_request_duration_seconds_bucket
+    # сформированы фильтром HttpMetricsFilter из Micrometer-метрик.
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
