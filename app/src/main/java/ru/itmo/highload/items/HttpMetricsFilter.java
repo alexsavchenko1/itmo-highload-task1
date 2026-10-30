@@ -27,11 +27,23 @@ public class HttpMetricsFilter extends OncePerRequestFilter {
     private final String datacenter;
 
     public HttpMetricsFilter(PrometheusMeterRegistry registry,
-            @Value("${POD_ID:local}") String pod,
-            @Value("${DATACENTER:local}") String datacenter) {
+            @Value("${POD_ID:local}") String pod,               // получить значение POD_ID из compose.yaml. Если оно не задано, использовать local
+            @Value("${DATACENTER:local}") String datacenter) {  // получить значение DATACENTER из compose.yaml. Если оно не задано, использовать local
         this.registry = registry;
         this.pod = pod;
         this.datacenter = datacenter;
+    }
+
+    /**
+     * Служебные запросы исключил. Особенно важно исключить
+     * /metrics, т.к. Prometheus опрашивает его каждые 5 секунд и создает лишний трафик,
+     * который не относится к бизнес-метрикам.
+     */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return "/health".equals(path) || "/metrics".equals(path)
+                || "/handlers".equals(path) || "/error".equals(path);
     }
 
     @Override

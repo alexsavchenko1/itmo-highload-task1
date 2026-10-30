@@ -5,6 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
@@ -24,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class MonitoringIntegrationTest {
     @Autowired private MockMvc mockMvc;
+    @Autowired private PrometheusMeterRegistry registry;
 
     @Test
     void registeredRoutesAreDiscoveredRatherThanHardcoded() throws Exception {
@@ -32,6 +36,17 @@ class MonitoringIntegrationTest {
                 .andExpect(content().string(containsString("\"route\":\"/metrics\"")))
                 .andExpect(content().string(containsString("\"route\":\"/items/{id}\"")))
                 .andExpect(content().string(containsString("\"route\":\"/health\"")));
+    }
+
+    @Test
+    void excludesTechnicalRoutesFromBusinessMetrics() throws Exception {
+        mockMvc.perform(get("/health")).andExpect(status().isOk());
+        mockMvc.perform(get("/handlers")).andExpect(status().isOk());
+        mockMvc.perform(get("/metrics")).andExpect(status().isOk());
+        String metrics = registry.scrape();
+        assertFalse(metrics.contains("route=\"/health\""));
+        assertFalse(metrics.contains("route=\"/handlers\""));
+        assertFalse(metrics.contains("route=\"/metrics\""));
     }
 
     @Test

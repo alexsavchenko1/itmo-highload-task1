@@ -57,7 +57,7 @@ def check_prometheus():
     print('OK: Prometheus collects both targets (UP)')
 
     # Запрос должен возвращать две отдельные временные серии с различными метками.
-    query = urllib.parse.quote('app_http_requests_total{job="items",method="GET",route="/health",status="200"}')
+    query = urllib.parse.quote('app_http_requests_total{job="items",method="GET",route="/items/{id}",status="404"}')
     result = fetch_json(PROM + '/api/v1/query?query=' + query)
     if result.get('status') != 'success':
         fail('Prometheus instant query returned failure')

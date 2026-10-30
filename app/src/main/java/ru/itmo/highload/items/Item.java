@@ -1,4 +1,7 @@
 package ru.itmo.highload.items;
 
-// Одна запись в нашем хранилище.
-public record Item(long id, String name) {}
+// Запись в нашем хранилище
+public record Item(
+        long id
+        , String name
+) {}

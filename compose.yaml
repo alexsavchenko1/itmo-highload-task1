@@ -1,3 +1,4 @@
+
 # Все контейнеры создаются одной командой: docker compose up --build -d.
 # app-1 и app-2 получают один исходный Java-код, но независимую память и метрики.
 services:
@@ -11,6 +12,12 @@ services:
       APP_DEMO_FAILURES_ENABLED: "true"
     ports:
       - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health > /dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     restart: unless-stopped
 
   app-2:
@@ -23,6 +30,12 @@ services:
       APP_DEMO_FAILURES_ENABLED: "true"
     ports:
       - "127.0.0.1:8081:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health > /dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     restart: unless-stopped
 
   prometheus:
@@ -53,8 +66,60 @@ services:
       - grafana-data:/var/lib/grafana
     ports:
       - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
     depends_on:
       - prometheus
+    restart: unless-stopped
+
+  # One-shot CLI program. Discovers *current* business routes via GET /handlers,
+  # builds PromQL and publishes a non-editable dashboard through Grafana HTTP API.
+  # This is a separate process; Java application never calls Grafana directly.
+  dashboard-generator:
+    image: python:3.13-alpine
+    working_dir: /work
+    command: ["python", "-u", "tools/dashboard_generator.py"]
+    volumes:
+      - ./tools:/work/tools:ro
+    environment:
+      APP_URLS: http://app-1:8080,http://app-2:8080
+      GRAFANA_URL: http://grafana:3000
+      GRAFANA_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Create .env from .env.example}
+      GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Create .env from .env.example}
+    depends_on:
+      app-1:
+        condition: service_healthy
+      app-2:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+      grafana:
+        condition: service_healthy
+    restart: "no"
+
+  # A separate long-running background process generates sustained traffic.
+  load-generator:
+    image: python:3.13-alpine
+    working_dir: /work
+    command: ["python", "-u", "tools/load_generator.py"]
+    volumes:
+      - ./tools:/work/tools:ro
+    environment:
+      APP_URLS: http://app-1:8080,http://app-2:8080
+      LOAD_START_RPS: ${LOAD_START_RPS:-3}
+      LOAD_TARGET_RPS: ${LOAD_TARGET_RPS:-40}
+      LOAD_RAMP_SECONDS: ${LOAD_RAMP_SECONDS:-120}
+    depends_on:
+      app-1:
+        condition: service_healthy
+      app-2:
+        condition: service_healthy
+      dashboard-generator:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
